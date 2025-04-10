@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cash Flow Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .slide-in {
+      transform: translateX(0);
+    }
+    .slide-out {
+      transform: translateX(100%);
+    }
+    .slide-left {
+      transform: translateX(-100%);
+    }
+    .transition-transform {
+      transition: transform 0.3s ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 p-4">
+  <div id="gameContainer" class="relative p-3 md:p-6 bg-gray-100 rounded-lg shadow-lg max-w-full md:max-w-2xl mx-auto">
+    <!-- Game content will be rendered here by JavaScript -->
+  </div>
+
+  <script>
+    // Game state
+    const gameState = {
+      cash: 1000,
+      salary: 3000,
+      expenses: 2500,
+      assets: [],
+      liabilities: [
+        { name: "Car Loan", cost: 200, remaining: 5000 },
+        { name: "Credit Card", cost: 100, remaining: 1000 }
+      ],
+      month: 1,
+      status: "In Rat Race",
+      gameStarted: false,
+      gameOver: false,
+      message: "",
+      showBalanceSheet: false,
+      showInvestments: false,
+      randomExpense: null
+    };
+
+    const availableAssets = [
+      { name: "Stock Investment", cost: 1000, monthlyIncome: 50, type: "asset", description: "Low risk, low return" },
+      { name: "Small Business", cost: 5000, monthlyIncome: 500, type: "asset", description: "Medium risk, good return" },
+      { name: "Real Estate", cost: 10000, monthlyIncome: 1000, type: "asset", description: "High initial cost, stable returns" },
+      { name: "Dividend ETF", cost: 2000, monthlyIncome: 100, type: "asset", description: "Diversified, steady income" },
+      { name: "Rental Property", cost: 15000, monthlyIncome: 1500, type: "asset", description: "High cost, high return" },
+      { name: "Peer-to-Peer Lending", cost: 500, monthlyIncome: 25, type: "asset", description: "Low entry, modest returns" },
+      { name: "Franchise", cost: 20000, monthlyIncome: 2500, type: "asset", description: "Very high cost, excellent returns" },
+      { name: "Royalty Investment", cost: 3000, monthlyIncome: 200, type: "asset", description: "Creative asset with ongoing income" },
+      { name: "Tech Startup Shares", cost: 8000, monthlyIncome: 800, type: "asset", description: "High risk, high growth potential" },
+      { name: "Cryptocurrency", cost: 1500, monthlyIncome: 150, type: "asset", description: "Very volatile, high potential" },
+      { name: "Bond Portfolio", cost: 3500, monthlyIncome: 175, type: "asset", description: "Low risk, stable returns" },
+      { name: "Vending Machine", cost: 2500, monthlyIncome: 200, type: "asset", description: "Physical business with steady cash flow" },
+      { name: "Dropshipping Store", cost: 1200, monthlyIncome: 120, type: "asset", description: "Online business with low overhead" },
+      { name: "Mobile App", cost: 4000, monthlyIncome: 400, type: "asset", description: "Digital asset with scaling potential" },
+      { name: "Vacation Rental", cost: 12000, monthlyIncome: 1300, type: "asset", description: "Seasonal high income property" },
+      { name: "REITs", cost: 3000, monthlyIncome: 180, type: "asset", description: "Real Estate Investment Trusts" },
+      { name: "Podcast Sponsorships", cost: 2000, monthlyIncome: 160, type: "asset", description: "Content creation with advertiser revenue" },
+      { name: "Laundromat", cost: 18000, monthlyIncome: 1800, type: "asset", description: "Reliable business with minimal oversight" },
+      { name: "Parking Lot", cost: 25000, monthlyIncome: 2800, type: "asset", description: "Low maintenance, high-value real estate" },
+      { name: "Dividend Growth Stocks", cost: 5000, monthlyIncome: 300, type: "asset", description: "Companies with growing dividend payments" },
+      { name: "Food Truck", cost: 15000, monthlyIncome: 1600, type: "asset", description: "Mobile food business with loyal customers" },
+      { name: "Storage Units", cost: 30000, monthlyIncome: 3300, type: "asset", description: "Passive rental income with low maintenance" }
+    ];
+
+    const randomExpenseEvents = [
+      { name: "Car Repair", cost: 300, probability: 0.1 },
+      { name: "Medical Bill", cost: 500, probability: 0.05 },
+      { name: "Home Maintenance", cost: 400, probability: 0.08 },
+      { name: "Family Emergency", cost: 700, probability: 0.03 },
+      { name: "Tech Replacement", cost: 250, probability: 0.07 },
+      { name: "Surprise Tax", cost: 450, probability: 0.06 },
+      { name: "Appliance Breakdown", cost: 350, probability: 0.09 },
+      { name: "Pet Emergency", cost: 600, probability: 0.04 },
+      { name: "Legal Fee", cost: 800, probability: 0.02 },
+      { name: "Roof Leak", cost: 550, probability: 0.05 },
+      { name: "Plumbing Issue", cost: 280, probability: 0.08 },
+      { name: "Phone Replacement", cost: 320, probability: 0.07 },
+      { name: "Wedding Gift", cost: 150, probability: 0.1 },
+      { name: "Traffic Ticket", cost: 180, probability: 0.09 },
+      { name: "Dental Work", cost: 420, probability: 0.06 },
+      { name: "School Supplies", cost: 200, probability: 0.08 },
+      { name: "Insurance Deductible", cost: 500, probability: 0.04 },
+      { name: "Computer Virus Recovery", cost: 240, probability: 0.07 },
+      { name: "Utility Spike", cost: 190, probability: 0.1 },
+      { name: "Stolen Item", cost: 380, probability: 0.05 }
+    ];
+
+    // Game functions
+    function calculateMonthlyIncome() {
+      const passiveIncome = gameState.assets.reduce((total, asset) => total + asset.monthlyIncome, 0);
+      return gameState.salary + passiveIncome;
+    }
+
+    function calculateMonthlyExpenses() {
+      const liabilityExpenses = gameState.liabilities.reduce((total, liability) => total + liability.cost, 0);
+      const randomExpenseCost = gameState.randomExpense ? gameState.randomExpense.cost : 0;
+      return gameState.expenses + liabilityExpenses + randomExpenseCost;
+    }
+
+    function calculateMonthlyCashFlow() {
+      return calculateMonthlyIncome() - calculateMonthlyExpenses();
+    }
+
+    function startGame() {
+      gameState.gameStarted = true;
+      gameState.message = "Welcome to the Cash Flow Game! Your goal is to build enough passive income to escape the rat race.";
+      renderGame();
+    }
+
+    function generateRandomExpense() {
+      let randomExpense = null;
+      for (const event of randomExpenseEvents) {
+        if (Math.random() < event.probability) {
+          randomExpense = event;
+          break;
+        }
+      }
+      return randomExpense;
+    }
+
+    function nextMonth() {
+      const income = calculateMonthlyIncome();
+      const randomExpense = generateRandomExpense();
+      const expenses = calculateMonthlyExpenses();
+      const cashFlow = income - expenses;
+      const newCash = gameState.cash + cashFlow;
+      const newMonth = gameState.month + 1;
+      
+      // Update liabilities (pay them down)
+      const updatedLiabilities = gameState.liabilities.map(liability => {
+        const payment = Math.min(liability.cost, liability.remaining);
+        return {
+          ...liability,
+          remaining: liability.remaining - payment
+        };
+      }).filter(liability => liability.remaining > 0);
+      
+      let newMessage = `Month ${newMonth}: You earned $${income} and spent $${expenses}.`;
+      if (randomExpense) {
+        newMessage += ` Unexpected expense: ${randomExpense.name} ($${randomExpense.cost})`;
+      }
+      
+      let newStatus = gameState.status;
+      let gameOver = false;
+      
+      // Check if won (passive income exceeds expenses)
+      const passiveIncome = gameState.assets.reduce((total, asset) => total + asset.monthlyIncome, 0);
+      if (passiveIncome > gameState.expenses) {
+        newStatus = "Financial Freedom!";
+        newMessage = "Congratulations! Your passive income now exceeds your basic expenses. You've escaped the rat race!";
+        gameOver = true;
+      }
+      
+      // Check if broke
+      if (newCash < 0) {
+        newMessage = "You've run out of money! Game over.";
+        gameOver = true;
+      }
+      
+      // Update game state
+      gameState.cash = newCash;
+      gameState.liabilities = updatedLiabilities;
+      gameState.month = newMonth;
+      gameState.status = newStatus;
+      gameState.gameOver = gameOver;
+      gameState.message = newMessage;
+      gameState.randomExpense = randomExpense;
+      
+      renderGame();
+    }
+
+    function buyAsset(asset) {
+      if (gameState.cash >= asset.cost) {
+        gameState.cash -= asset.cost;
+        gameState.assets.push(asset);
+        gameState.message = `You purchased a ${asset.name} that generates $${asset.monthlyIncome} monthly!`;
+      } else {
+        gameState.message = `Not enough cash to buy ${asset.name}. You need $${asset.cost - gameState.cash} more.`;
+      }
+      renderGame();
+    }
+
+    function resetGame() {
+      gameState.cash = 1000;
+      gameState.salary = 3000;
+      gameState.expenses = 2500;
+      gameState.assets = [];
+      gameState.liabilities = [
+        { name: "Car Loan", cost: 200, remaining: 5000 },
+        { name: "Credit Card", cost: 100, remaining: 1000 }
+      ];
+      gameState.month = 1;
+      gameState.status = "In Rat Race";
+      gameState.gameStarted = false;
+      gameState.gameOver = false;
+      gameState.message = "";
+      gameState.showBalanceSheet = false;
+      gameState.showInvestments = false;
+      gameState.randomExpense = null;
+      
+      renderGame();
+    }
+
+    function toggleBalanceSheet() {
+      gameState.showBalanceSheet = !gameState.showBalanceSheet;
+      gameState.showInvestments = false;
+      renderGame();
+    }
+
+    function toggleInvestments() {
+      gameState.showInvestments = !gameState.showInvestments;
+      gameState.showBalanceSheet = false;
+      renderGame();
+    }
+
+    // Render functions
+    function renderGame() {
+      const gameContainer = document.getElementById('gameContainer');
+      
+      if (!gameState.gameStarted) {
+        gameContainer.innerHTML = `
+          <div class="flex flex-col items-center justify-center p-4 bg-gray-100 rounded-lg shadow-lg max-w-full md:max-w-2xl mx-auto">
+            <h1 class="text-2xl md:text-3xl font-bold text-purple-800 mb-4">Cash Flow Game</h1>
+            <p class="mb-4 text-gray-700 text-center">
+              Based on principles from "Rich Dad Poor Dad" by Robert Kiyosaki. 
+              Your goal is to escape the rat race by building passive income that exceeds your expenses.
+            </p>
+            <button 
+              onclick="startGame()"
+              class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+            >
+              Start Game
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      gameContainer.innerHTML = `
+        <h1 class="text-2xl md:text-3xl font-bold text-purple-800 mb-2">Cash Flow Game</h1>
+        
+        <!-- Game Controls - Moved to Top -->
+        <div class="flex justify-between mb-3">
+          <button
+            onclick="nextMonth()"
+            ${gameState.gameOver ? 'disabled' : ''}
+            class="py-2 px-4 rounded ${gameState.gameOver ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 text-white'}"
+          >
+            Next Month
+          </button>
+          <button
+            onclick="resetGame()"
+            class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded"
+          >
+            Reset Game
+          </button>
+        </div>
+        
+        <!-- Status Bar -->
+        <div class="flex flex-col md:flex-row justify-between bg-white p-3 rounded-lg shadow mb-3">
+          <div class="mb-2 md:mb-0">
+            <p class="font-bold">Month: ${gameState.month}</p>
+            <p class="font-bold text-blue-600">Status: ${gameState.status}</p>
+          </div>
+          <div>
+            <p class="font-bold text-green-600">Cash: $${gameState.cash}</p>
+            <p class="font-semibold ${calculateMonthlyCashFlow() >= 0 ? 'text-green-600' : 'text-red-600'}">
+              Monthly Cash Flow: $${calculateMonthlyCashFlow()}
+            </p>
+          </div>
+        </div>
+        
+        <!-- Message Box -->
+        <div class="bg-yellow-100 p-3 rounded-lg mb-3 min-h-16 border border-yellow-300">
+          <p>${gameState.message}</p>
+          ${gameState.randomExpense ? `
+            <p class="text-red-600 mt-1">
+              Unexpected expense this month: ${gameState.randomExpense.name} ($${gameState.randomExpense.cost})
+            </p>
+          ` : ''}
+        </div>
+        
+        <!-- Control Buttons for Mobile and Desktop -->
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <button 
+            onclick="toggleBalanceSheet()"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+          >
+            ${gameState.showBalanceSheet ? "Hide Balance Sheet" : "Show Balance Sheet"}
+          </button>
+          <button 
+            onclick="toggleInvestments()"
+            class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+          >
+            ${gameState.showInvestments ? "Hide Investments" : "Show Investments"}
+          </button>
+        </div>
+        
+        <!-- Basic Income Statement (Always Visible) -->
+        ${!gameState.showBalanceSheet && !gameState.showInvestments ? `
+          <div class="bg-white p-3 rounded-lg shadow mb-3">
+            <h2 class="text-lg font-bold mb-2">Income Statement</h2>
+            <div class="mb-2">
+              <p class="text-green-600">Salary: $${gameState.salary}</p>
+              <p class="text-green-600">Passive Income: $${gameState.assets.reduce((sum, asset) => sum + asset.monthlyIncome, 0)}</p>
+              <p class="font-bold text-green-600">Total Income: $${calculateMonthlyIncome()}</p>
+            </div>
+            <div>
+              <p class="text-red-600">Basic Expenses: $${gameState.expenses}</p>
+              <p class="text-red-600">Liability Payments: $${gameState.liabilities.reduce((sum, liability) => sum + liability.cost, 0)}</p>
+              ${gameState.randomExpense ? `
+                <p class="text-red-600">Unexpected: $${gameState.randomExpense.cost}</p>
+              ` : ''}
+              <p class="font-bold text-red-600">Total Expenses: $${calculateMonthlyExpenses()}</p>
+            </div>
+            
+            <!-- Asset Summary -->
+            <div class="mt-4 border-t pt-2">
+              <h3 class="font-bold text-green-600">Your Assets:</h3>
+              ${gameState.assets.length > 0 ? `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                  ${gameState.assets.map((asset, index) => `
+                    <div key="${index}" class="bg-green-50 p-2 rounded border-l-4 border-green-400">
+                      <p class="font-semibold">${asset.name}</p>
+                      <p class="text-sm text-green-600">+$${asset.monthlyIncome}/month</p>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : `
+                <p class="italic text-gray-600">No assets yet. Buy some investments!</p>
+              `}
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- Balance Sheet Panel/Popup -->
+        ${gameState.showBalanceSheet ? `
+          <div class="md:fixed md:inset-0 md:bg-black md:bg-opacity-50 md:flex md:items-center md:justify-center md:z-50 fixed inset-0 bg-white z-50 transform transition-transform duration-300 ease-in-out slide-in">
+            <div class="md:relative md:bg-white md:p-6 md:rounded-lg md:shadow-xl md:max-w-2xl md:w-full md:max-h-screen md:overflow-y-auto absolute inset-0 bg-white p-4 overflow-y-auto">
+              <!-- Close button -->
+              <button 
+                onclick="toggleBalanceSheet()"
+                class="absolute top-2 right-2 bg-gray-200 hover:bg-gray-300 rounded-full p-2"
+              >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+              
+              <h2 class="text-xl font-bold mb-4 text-purple-800">Complete Balance Sheet</h2>
+              
+              <div class="mb-4">
+                <h3 class="text-lg font-bold text-green-600 border-b border-green-300 pb-1 mb-2">Assets</h3>
+                <div class="bg-green-50 p-3 rounded-lg">
+                  <p class="font-bold mb-2">Cash: $${gameState.cash}</p>
+                  
+                  ${gameState.assets.length > 0 ? `
+                    <div class="grid grid-cols-1 gap-2">
+                      ${gameState.assets.map((asset, index) => `
+                        <div key="${index}" class="border-l-4 border-green-400 pl-2 py-1">
+                          <p class="font-semibold">${asset.name}</p>
+                          <div class="flex justify-between text-sm">
+                            <span>Cost: $${asset.cost}</span>
+                            <span class="text-green-600">Income: $${asset.monthlyIncome}/mo</span>
+                          </div>
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : `
+                    <p class="italic text-gray-600">No investment assets yet</p>
+                  `}
+                </div>
+                
+                <div class="mt-2 p-2 bg-green-100 rounded">
+                  <p class="font-bold">Total Asset Value: $${gameState.cash + gameState.assets.reduce((sum, asset) => sum + asset.cost, 0)}</p>
+                  <p class="font-bold">Total Monthly Income: $${calculateMonthlyIncome()}</p>
+                  <p class="font-bold text-green-600">Passive Income: $${gameState.assets.reduce((sum, asset) => sum + asset.monthlyIncome, 0)}</p>
+                </div>
+              </div>
+              
+              <div>
+                <h3 class="text-lg font-bold text-red-600 border-b border-red-300 pb-1 mb-2">Liabilities</h3>
+                <div class="bg-red-50 p-3 rounded-lg">
+                  ${gameState.liabilities.length > 0 ? `
+                    <div class="grid grid-cols-1 gap-2">
+                      ${gameState.liabilities.map((liability, index) => `
+                        <div key="${index}" class="border-l-4 border-red-400 pl-2 py-1">
+                          <p class="font-semibold">${liability.name}</p>
+                          <div class="flex justify-between text-sm">
+                            <span>Monthly Payment: $${liability.cost}</span>
+                            <span>Remaining: $${liability.remaining}</span>
+                          </div>
+                          <div class="w-full bg-gray-300 rounded-full h-2 mt-1">
+                            <div 
+                              class="bg-red-500 h-2 rounded-full" 
+                              style="width: ${100 - (liability.remaining / (liability.remaining + liability.cost * 5)) * 100}%"
+                            ></div>
+                          </div>
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : `
+                    <p class="italic text-gray-600">No liabilities! Well done!</p>
+                  `}
+                </div>
+                
+                <div class="mt-2 p-2 bg-red-100 rounded">
+                  <p class="font-bold">Total Liabilities: $${gameState.liabilities.reduce((sum, liability) => sum + liability.remaining, 0)}</p>
+                  <p class="font-bold">Total Monthly Expenses: $${calculateMonthlyExpenses()}</p>
+                  <p class="font-bold text-red-600">Debt Payments: $${gameState.liabilities.reduce((sum, liability) => sum + liability.cost, 0)}/mo</p>
+                </div>
+              </div>
+              
+              <div class="mt-4 p-3 bg-blue-100 rounded-lg">
+                <h3 class="font-bold text-blue-800">Financial Freedom Progress</h3>
+                <p>Basic Monthly Expenses: $${gameState.expenses}</p>
+                <p>Current Passive Income: $${gameState.assets.reduce((sum, asset) => sum + asset.monthlyIncome, 0)}</p>
+                <div class="w-full bg-gray-300 rounded-full h-4 mt-2">
+                  <div 
+                    class="bg-blue-600 h-4 rounded-full" 
+                    style="width: ${Math.min(100, (gameState.assets.reduce((sum, asset) => sum + asset.monthlyIncome, 0) / gameState.expenses) * 100)}%"
+                  ></div>
+                </div>
+                <p class="text-center mt-1 text-sm">
+                  ${Math.round((gameState.assets.reduce((sum, asset) => sum + asset.monthlyIncome, 0) / gameState.expenses) * 100)}% to Financial Freedom
+                </p>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- Investments Panel Slider -->
+        ${gameState.showInvestments ? `
+          <div class="md:fixed md:top-0 md:right-0 md:bottom-0 md:w-96 md:bg-white md:shadow-xl md:z-50 md:overflow-y-auto fixed inset-0 bg-white z-50 transform transition-transform duration-300 ease-in-out slide-in">
+            <div class="p-4">
+              <!-- Close button -->
+              <button 
+                onclick="toggleInvestments()"
+                class="absolute top-2 right-2 bg-gray-200 hover:bg-gray-300 rounded-full p-2"
+              >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+              
+              <h2 class="text-xl font-bold mb-4 text-green-700">Available Investments</h2>
+              <p class="mb-4 text-sm">Invest your cash to generate passive income:</p>
+              
+              <div class="grid grid-cols-1 gap-3">
+                ${availableAssets.map((asset, index) => `
+                  <div 
+                    class="p-3 rounded-lg border ${gameState.cash >= asset.cost && !gameState.gameOver ? 'border-blue-400 hover:bg-blue-50' : 'border-gray-300 bg-gray-50'}"
+                  >
+                    <p class="font-bold">${asset.name}</p>
+                    <p class="text-sm text-gray-600">${asset.description}</p>
+                    <div class="flex justify-between text-sm mt-1">
+                      <span>Cost: $${asset.cost}</span>
+                      <span class="text-green-600">+$${asset.monthlyIncome}/mo</span>
+                    </div>
+                    <div class="flex items-center mt-2">
+                      <div class="flex-grow mr-2">
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            class="bg-green-500 h-2 rounded-full" 
+                            style="width: ${Math.min(100, (asset.monthlyIncome / asset.cost * 1000))}%"
+                          ></div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">ROI: ${((asset.monthlyIncome * 12 / asset.cost) * 100).toFixed(1)}% yearly</p>
+                      </div>
+                      <button
+                        onclick="buyAsset(${JSON.stringify(asset).replace(/"/g, '&quot;')})"
+                        ${gameState.gameOver || gameState.cash < asset.cost ? 'disabled' : ''}
+                        class="py-1 px-3 rounded ${gameState.cash >= asset.cost && !gameState.gameOver ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed'}"
+                      >
+                        Buy
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    // Initial render
+    renderGame();
+  </script>
+</body>
+</html>
